@@ -1,0 +1,128 @@
+openapi: 3.0.3
+info:
+  title: Cart Microservice API
+  description: Handles active shopping cart management, item quantities, and cart updates.
+  version: 1.0.0
+
+components:
+  schemas:
+    CartItem:
+      type: object
+      required:
+        - productId
+        - productName
+        - quantity
+        - unitPrice
+      properties:
+        productId:
+          type: string
+          example: "prod-101"
+        productName:
+          type: string
+          example: "Organic Apples"
+        quantity:
+          type: integer
+          example: 2
+        unitPrice:
+          type: number
+          example: 4.99
+
+    Cart:
+      type: object
+      required:
+        - cartId
+        - customerId
+        - items
+        - totalPrice
+      properties:
+        cartId:
+          type: string
+          example: "cart-456"
+        customerId:
+          type: string
+          example: "cust-123"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        totalPrice:
+          type: number
+          example: 9.98
+
+    AddCartItemRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          example: "prod-101"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+
+paths:
+  /api/v1/cart:
+    get:
+      summary: Retrieve the current active cart for a customer
+      parameters:
+        - in: query
+          name: customerId
+          required: true
+          schema:
+            type: string
+          description: The ID of the customer whose cart is being retrieved.
+      responses:
+        "200":
+          description: Successful retrieval of the cart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "404":
+          description: Cart not found for the given customer ID.
+        "500":
+          description: Internal server error.
+
+  /api/v1/cart/items:
+    post:
+      summary: Add an item to the customer's active cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCartItemRequest"
+      responses:
+        "200":
+          description: Item successfully added to the cart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "400":
+          description: Invalid request body or product not found.
+
+  /api/v1/cart/items/{productId}:
+    delete:
+      summary: Remove an item from the customer's active cart
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: The ID of the product to be removed from the cart.
+      responses:
+        "200":
+          description: Item successfully removed from the cart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "404":
+          description: Product not found in the cart.
+        "500":
+          description: Internal server error.

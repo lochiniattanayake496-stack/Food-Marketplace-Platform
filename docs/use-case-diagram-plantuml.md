@@ -1,0 +1,50 @@
+# FreshMarket - Use Case Diagram (PlantUML Version)
+
+```plantuml
+@startuml FreshMarket_Use_Case_Diagram
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle stickman
+
+left to right direction
+
+actor "Customer" as c
+actor "Supplier" as s
+actor "Data Steward" as ds
+
+rectangle "FreshMarket Enterprise System Boundary" {
+  usecase "Browse & Search Products" as UC1
+  usecase "View Approved Product Details" as UC2
+  usecase "Manage Single Active Cart" as UC3
+  usecase "Update Cart Quantities" as UC4
+
+  usecase "Create Product Submission" as UC5
+  usecase "Manage Own Product Listings" as UC6
+  usecase "Track Approval Status" as UC7
+
+  usecase "Review Submissions Queue" as UC8
+  usecase "Approve Product Submission" as UC9
+  usecase "Reject Submission with Reason" as UC10
+
+  usecase "Authenticate / Login" as UC_Auth
+}
+
+c --> UC1
+c --> UC2
+c --> UC3
+c --> UC4
+
+s --> UC5
+s --> UC6
+s --> UC7
+
+ds --> UC8
+ds --> UC9
+ds --> UC10
+
+UC3 ..> UC_Auth : <<include>>
+UC5 ..> UC_Auth : <<include>>
+UC8 ..> UC_Auth : <<include>>
+UC2 ..> UC1 : <<extend>>
+@enduml
+```

@@ -1,0 +1,106 @@
+openapi: 3.0.3
+info:
+  title: Approval Microservice API
+  description: Handles Data Steward review queues, approvals, and rejection reasons.
+  version: 1.0.0
+
+components:
+  schemas:
+    PendingSubmission:
+      type: object
+      required:
+        - submissionId
+        - productId
+        - productName
+        - supplierId
+        - status
+      properties:
+        submissionId:
+          type: string
+          example: "sub-202"
+        productId:
+          type: string
+          example: "prod-101"
+        productName:
+          type: string
+          example: "Organic Apples"
+        supplierId:
+          type: string
+          example: "sup-88"
+        status:
+          type: string
+          example: "PENDING"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-06-01T12:00:00Z"
+
+    RejectRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          example: "Product description is incomplete."
+
+paths:
+  /api/v1/approvals/pending:
+    get:
+      summary: Retrieve pending product submissions
+      description: Fetches a list of product submissions that are awaiting approval or rejection.
+      responses:
+        "200":
+          description: A list of pending submissions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PendingSubmission"
+        "500":
+          description: Internal server error.
+
+  /api/v1/approvals/{submissionId}/approve:
+    post:
+      summary: Approve a pending product submission
+      description: Approves a product submission, changing its status to APPROVED.
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+          description: The ID of the submission to approve.
+      responses:
+        "200":
+          description: Submission approved successfully.
+        "404":
+          description: Submission not found.
+        "500":
+          description: Internal server error.
+
+  /api/v1/approvals/{submissionId}/reject:
+    post:
+      summary: Reject a pending product submission
+      description: Rejects a product submission, changing its status to REJECTED and providing a reason.
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+          description: The ID of the submission to reject.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectRequest"
+      responses:
+        "200":
+          description: Submission rejected successfully.
+        "404":
+          description: Submission not found.
+        "500":
+          description: Internal server error.
