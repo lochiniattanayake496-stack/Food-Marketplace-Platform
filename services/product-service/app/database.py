@@ -1,26 +1,19 @@
 import os
-
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://postgres:postgrespassword@localhost:5432/freshmarket_db"
-)
+# Uses DATABASE_URL environment variable if present (for PostgreSQL), otherwise falls back to local SQLite
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local.db")
 
+engine_kwargs = {"connect_args": {"check_same_thread": False}} if DATABASE_URL.startswith("sqlite") else {}
 
-engine = create_engine(DATABASE_URL)
-
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
 Base = declarative_base()
 
-# Dependency function to inject database sessions into FastAPI routes cleanly
 def get_db():
     db = SessionLocal()
     try:
-        yield db 
+        yield db
     finally:
-        db.close()  
+        db.close()
