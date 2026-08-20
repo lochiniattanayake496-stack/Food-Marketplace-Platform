@@ -77,10 +77,25 @@ def update_product_status(
     new_status = status_update.status.upper()
     if new_status not in ["APPROVED", "REJECTED"]:
         raise HTTPException(status_code=400, detail="Invalid status. Must be 'APPROVED' or 'REJECTED'.")
-    
 
-    product.status = status_update.status.upper()
-    product.rejection_reason = status_update.rejection_reason
+    product.status = new_status
+    if new_status == "REJECTED":
+        product.rejection_reason = status_update.rejection_reason
+    else:
+        product.rejection_reason = None  # Clear rejection reason if approved
+
     db.commit()
     db.refresh(product)
     return product
+
+#--- DELETE PRODUCT ---#
+
+@app.delete("/api/v1/products/{product_id}", status_code=status.HTTP_200_OK)
+def delete_product(product_id: str, db: Session = Depends(get_db)):
+    product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    db.delete(product)
+    db.commit()
+    return {"detail": "Product deleted successfully"}
