@@ -1,7 +1,12 @@
-
-from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
+import uuid
 from typing import List
+from fastapi import FastAPI, HTTPException, Depends, Query, status
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import CartModel, CartItemModel
+from app.schemas import CartResponse, AddCartItemRequest
+from app.seed import init_db
 
 app = FastAPI(
     title="Cart Microservice API",
@@ -9,113 +14,89 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# --- PYDANTIC MODELS (Data Contracts) ---
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 
-class CartItem(BaseModel):
-    productId: str      
-    productName: str    
-    quantity: int      
-    unitPrice: float    
+#---GET ACTIVE CART BY CUSTOMER ID---
 
+@app.get("/api/v1/carts", response_model=CartResponse)
+def get_cart_by_customer_id(customer_id: str = Query(..., description="Unique Customer ID"), db: Session = Depends(get_db)):
+    cart = db.query(CartModel).filter(CartModel.customer_id == customer_id).first()
+    if not cart:
+        cart = CartModel(customer_id=customer_id)
+        db.add(cart)
+        db.commit()
+        db.refresh(cart)
 
-class Cart(BaseModel):
-    cartId: str             
-    customerId: str         
-    items: List[CartItem]  
-    totalPrice: float      
-
-
-class AddCartItemRequest(BaseModel):
-    productId: str
-    quantity: int = Field(gt=0, description="Quantity must be greater than 0")  
-
-# --- MOCK DATABASE ---
-
-cart_db = {
-    "cartId": "cart-456",
-    "customerId": "cust-123",
-    "items": [
-        {
-            "productId": "prod-101",
-            "productName": "Organic Apples",
-            "quantity": 2,
-            "unitPrice": 4.99
-        }
-    ],
-    "totalPrice": 9.98
-}
-
-
-def recalculate_total():
-    cart_db["totalPrice"] = round(
-        sum(item["quantity"] * item["unitPrice"] for item in cart_db["items"]), 2
-    )
-
-# --- API ENDPOINTS ---
-
-
-@app.get("/api/v1/cart", response_model=Cart)
-def get_cart(customerId: str = Query(..., description="The ID of the customer whose cart is being retrieved.")):
-    """
-    Fetch active shopping cart state for a given customerId.
-    """
-    
-    if customerId != cart_db["customerId"]:
-        raise HTTPException(status_code=404, detail="Cart not found for the given customer ID.")
-    return cart_db
-
-
-@app.post("/api/v1/cart/items", response_model=Cart)
-def add_item_to_cart(request: AddCartItemRequest):
-    """
-    Add a product to the active cart.
-    Increments quantity if item already exists in the cart.
-    """
-    # Mock lookup database of valid products for pricing
-    mock_catalog = {
-        "prod-101": {"name": "Organic Apples", "price": 4.99},
-        "prod-102": {"name": "Whole Milk 1L", "price": 2.49}
+    total_price = sum(item.quantity * item.price for item in cart.items)
+    return {
+        "id": cart.id,
+        "customer_id": cart.customer_id,
+        "items": cart.items,
+        "totalPrice": total_price
     }
-    
-    
-    if request.productId not in mock_catalog:
-        raise HTTPException(status_code=400, detail="Invalid request body or product not found.")
-    
-    product_info = mock_catalog[request.productId]
-    
-   
-    for item in cart_db["items"]:
-        if item["productId"] == request.productId:
-            item["quantity"] += request.quantity
-            recalculate_total()  # Update total price
-            return cart_db
 
-    
-    cart_db["items"].append({
-        "productId": request.productId,
-        "productName": product_info["name"],
-        "quantity": request.quantity,
-        "unitPrice": product_info["price"]
-    })
-    
-    recalculate_total()  
-    return cart_db
+# --- ADD OR UPDATE ITEM IN CART ---
+@app.post("/api/v1/carts/{cart_id}/items", response_model=CartResponse)
+def add_or_update_cart_item(cart_id: str, item_req: AddCartItemRequest, db: Session = Depends(get_db)):
+    cart = db.query(CartModel).filter(CartModel.id == cart_id).first()
+    if not cart:
+        raise HTTPException(status_code=404, detail="Cart not found.")
 
+    existing_item = db.query(CartItemModel).filter(
+        CartItemModel.cart_id == cart_id,
+        CartItemModel.product_id == item_req.productId
+    ).first()
 
-@app.delete("/api/v1/cart/items/{productId}", response_model=Cart)
-def remove_item(productId: str):
-    """
-    Remove an item completely from the active shopping cart by product ID.
-    """
-    initial_item_count = len(cart_db["items"])
-    
-   
-    cart_db["items"] = [item for item in cart_db["items"] if item["productId"] != productId]
-    
-   r
-    if len(cart_db["items"]) == initial_item_count:
-        raise HTTPException(status_code=404, detail="Product not found in the cart.")
-    
-    recalculate_total()  
-    return cart_db
+    if existing_item:
+        existing_item.quantity += item_req.quantity
+    else:
+        new_item = CartItemModel(
+            id=f"item-{uuid.uuid4().hex[:6]}",
+            cart_id=cart_id,
+            product_id=item_req.productId,
+            product_name=item_req.productName,
+            quantity=item_req.quantity,
+            unit_price=item_req.unitPrice
+        )
+        db.add(new_item)
+
+    db.commit()
+    db.refresh(cart)
+
+    total_price = sum(i.quantity * i.unit_price for i in cart.items)
+    return {
+        "id": cart.id,
+        "customer_id": cart.customer_id,
+        "items": cart.items,
+        "totalPrice": total_price
+    }
+
+# --- REMOVE ITEM FROM CART ---
+@app.delete("/api/v1/carts/{cart_id}/items/{product_id}", response_model=CartResponse)
+def remove_cart_item(cart_id: str, product_id: str, db: Session = Depends(get_db)):
+    cart = db.query(CartModel).filter(CartModel.id == cart_id).first()
+    if not cart:
+        raise HTTPException(status_code=404, detail="Cart not found.")
+
+    item = db.query(CartItemModel).filter(
+        CartItemModel.cart_id == cart_id,
+        CartItemModel.product_id == product_id
+    ).first()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found in cart.")
+
+    db.delete(item)
+    db.commit()
+    db.refresh(cart)
+
+    total_price = sum(i.quantity * i.unit_price for i in cart.items)
+    return {
+        "id": cart.id,
+        "customer_id": cart.customer_id,
+        "items": cart.items,
+        "totalPrice": total_price
+    }
