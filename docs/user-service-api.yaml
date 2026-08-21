@@ -31,15 +31,20 @@ components:
           enum: [ACTIVE, INACTIVE]
           example: "ACTIVE"
 
-    UserRoleUpdateRequest:
+    UserUpdateRequest:
       type: object
-      required:
-        - role
       properties:
         role:
           type: string
           enum: [Customer, Supplier, DataSteward]
           example: "DataSteward"
+        name:
+          type: string
+          example: "Jane Doe"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          example: "ACTIVE"
 
 paths:
   /api/v1/users:
@@ -103,23 +108,8 @@ paths:
         "404":
           description: User not found.
 
-    delete:
-      summary: Delete user account (Admin only)
-      parameters:
-        - in: path
-          name: userId
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: User profile deleted.
-        "404":
-          description: User not found.
-
-  /api/v1/users/{userId}/role:
-    put:
-      summary: Update user role (Admin / Data Steward only)
+    patch:
+      summary: Partially update user details or role
       parameters:
         - in: path
           name: userId
@@ -131,13 +121,27 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UserRoleUpdateRequest"
+              $ref: "#/components/schemas/UserUpdateRequest"
       responses:
         "200":
-          description: User role updated successfully.
+          description: User profile updated successfully.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "404":
+          description: User not found.
+
+    delete:
+      summary: Delete user account (Admin only)
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile deleted.
         "404":
           description: User not found.

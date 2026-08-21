@@ -25,6 +25,18 @@ class ProductionSubmissionRequest(BaseModel):
     class Config:
         populate_by_name = True
 
+class ProductUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = Field(None, gt=0)
+    category: Optional[str] = None
+    status: Optional[str] = None
+    supplier_id: Optional[str] = Field(None, alias="supplierId")
+    rejection_reason: Optional[str] = Field(None, alias="rejectionReason")
+
+    class Config:
+        populate_by_name = True
+
 class ProoductStatusUpdateRequest(BaseModel):
     status: str
     rejection_reason: Optional[str] = Field(None, alias="rejectionReason")

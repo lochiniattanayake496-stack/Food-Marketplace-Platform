@@ -29,3 +29,11 @@ class AddCartItemRequest(BaseModel):
 
     class Config:
         populate_by_name = True
+
+class UpdateCartItemRequest(BaseModel):
+    quantity: Optional[int] = Field(None, ge=1)
+    unitPrice: Optional[float] = Field(None, gt=0, alias="unit_price")
+    productName: Optional[str] = Field(None, alias="product_name")
+
+    class Config:
+        populate_by_name = True

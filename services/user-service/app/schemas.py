@@ -1,12 +1,23 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from enum import Enum
+
+class UserRole(str, Enum):
+    CUSTOMER = "Customer"
+    SUPPLIER = "Supplier"
+    DATA_STEWARD = "DataSteward"
+
+class UserStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
 
 class UserResponse(BaseModel):
     id: int
     email: EmailStr
     username: str
     full_name: Optional[str] = None
-    status: str
+    role: UserRole
+    status: UserStatus =  UserStatus.ACTIVE
     
 
     class Config:
@@ -18,5 +29,7 @@ class UserSyncRequest(BaseModel):
     full_name: Optional[str] = None
     status: str
 
-class UserRoleUpdateRequest(BaseModel):
-    role: str
+class UserUpdateRequest(BaseModel):
+    role: Optional[UserRole] = None
+    name: Optional[str] = None
+    status: Optional[UserStatus] = None

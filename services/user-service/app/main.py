@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import UserModel
-from app.schemas import UserResponse, UserSyncRequest, UserRoleUpdateRequest
+from app.schemas import UserResponse, UserSyncRequest, UserUpdateRequest
 from app.seed import init_db
 
 app = FastAPI(
@@ -60,23 +60,25 @@ def get_user(user_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
 
-#--UPDATE USER ROLE--#
+#--UPDATE USER --#
 
-@app.put("/api/v1/users/{user_id}/role", response_model=UserResponse)
-def update_user_role(user_id: str, role_update: UserRoleUpdateRequest, db: Session = Depends(get_db)):
+@app.patch("/api/v1/users/{user_id}", response_model=UserResponse)
+def update_user(user_id: str, user_update: UserUpdateRequest, db: Session = Depends(get_db)):
     user = db.query(UserModel).filter(UserModel.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
 
-    valid_roles = ["Customer", "Supplier", "Data Steward"], 
-    if role_update.role not in valid_roles:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid role. Valid roles are: {valid_roles}")    
+    update_data = user_update.model_dump(exclude_unset=True)
 
-    user.role = role_update.role
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    
     db.commit()
     db.refresh(user)
-    return user
+    return user   
+
 
 #--DELETE USER PROFILE--#
 

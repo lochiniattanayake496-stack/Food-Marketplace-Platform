@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import ProductModel
-from app.schemas import ProductResponse, ProductionSubmissionRequest, ProoductStatusUpdateRequest
+from app.schemas import ProductResponse, ProductionSubmissionRequest, ProoductStatusUpdateRequest, ProductUpdateRequest
 from app.seed import init_db
 
 app = FastAPI(
@@ -64,25 +64,36 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
 
 #--- UPDATE PRODUCT STATUS (DATA STEWARD APPROVAL/REJECTION---#
 
-@app.put("/api/v1/products/{product_id}/status", response_model=ProductResponse)
-def update_product_status(
+@app.patch("/api/v1/products/{product_id}", response_model=ProductResponse)
+def update_product(
     product_id: str, 
-    status_update: ProoductStatusUpdateRequest,
+    product_update: ProductUpdateRequest,
     db: Session = Depends(get_db)
 ):
     product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-    new_status = status_update.status.upper()
-    if new_status not in ["APPROVED", "REJECTED"]:
-        raise HTTPException(status_code=400, detail="Invalid status. Must be 'APPROVED' or 'REJECTED'.")
+    # Extract only fields explicitly supplied in the request body
+    update_data = product_update.model_dump(exclude_unset=True)
 
-    product.status = new_status
-    if new_status == "REJECTED":
-        product.rejection_reason = status_update.rejection_reason
-    else:
-        product.rejection_reason = None  # Clear rejection reason if approved
+    # Validate status value if status is being updated
+    if "status" in update_data:
+        new_status = update_data["status"].upper()
+        if new_status not in ["PENDING", "APPROVED", "REJECTED"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Invalid status. Must be 'PENDING', 'APPROVED', or 'REJECTED'."
+            )
+        update_data["status"] = new_status
+        
+        # Clear rejection reason if status is changed to APPROVED
+        if new_status == "APPROVED":
+            product.rejection_reason = None
+
+    # Dynamically apply supplied updates to the database model
+    for field, value in update_data.items():
+        setattr(product, field, value)
 
     db.commit()
     db.refresh(product)
