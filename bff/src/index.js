@@ -5,11 +5,13 @@ const { verifyCognitoToken } = require('./middleware/auth');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+// Default to port 8000 to serve as single entry point for Frontend MFEs
+const PORT = process.env.PORT || 8000;
 
-const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://localhost:8000';
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://localhost:8001';
-const CART_SERVICE_URL = process.env.CART_SERVICE_URL || 'http://localhost:8002';
+// Microservice Ports Alignment
+const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://127.0.0.1:8001';
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://127.0.0.1:8002';
+const CART_SERVICE_URL = process.env.CART_SERVICE_URL || 'http://127.0.0.1:8003';
 
 app.use(cors());
 app.use(verifyCognitoToken);
@@ -25,7 +27,7 @@ const onProxyReq = (proxyReq, req, res) => {
 
 // --- PROXY ROUTE MAP ---
 
-// 1. Product Service
+// 1. Product Service (Includes Data Steward Approvals on /products/{id}/status)
 app.use(
   ['/api/v1/products', '/api/v1/approvals'],
   createProxyMiddleware({
@@ -36,7 +38,7 @@ app.use(
   })
 );
 
-// 2. User Service
+// 2. User Service (Includes Role Management on /users/{id}/role)
 app.use(
   '/api/v1/users',
   createProxyMiddleware({
