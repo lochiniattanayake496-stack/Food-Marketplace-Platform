@@ -1,0 +1,185 @@
+openapi: 3.0.3
+info:
+  title: Product Microservice API
+  description: Handles product catalog management, supplier submissions, and Data Steward approvals.
+  version: 1.0.0
+
+components:
+  schemas:
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - price
+        - category
+        - status
+        - supplierId
+      properties:
+        id:
+          type: string
+          example: "prod-101"
+        name:
+          type: string
+          example: "Fresh Organic Apples"
+        description:
+          type: string
+          example: "Freshly harvested organic apples from local farms."
+        price:
+          type: number
+          example: 4.99
+        category:
+          type: string
+          example: "Produce"
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+          example: "APPROVED"
+        supplierId:
+          type: string
+          example: "sup-88"
+        rejectionReason:
+          type: string
+          nullable: true
+          example: "Description lacks mandatory compliance details."
+
+    ProductSubmissionRequest:
+      type: object
+      required:
+        - name
+        - price
+        - category
+        - supplierId
+      properties:
+        name:
+          type: string
+          example: "Fresh Organic Apples"
+        description:
+          type: string
+          example: "Freshly harvested organic apples from local farms."
+        price:
+          type: number
+          example: 4.99
+        category:
+          type: string
+          example: "Produce"
+        supplierId:
+          type: string
+          example: "sup-88"
+
+    ProductStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [APPROVED, REJECTED]
+          example: "APPROVED"
+        rejectionReason:
+          type: string
+          example: "Approved by Data Steward."
+
+paths:
+  /api/v1/products:
+    get:
+      summary: Retrieve products with filtering options
+      description: Query products by category or review status (e.g., status=PENDING for Data Steward queues).
+      parameters:
+        - in: query
+          name: category
+          required: false
+          schema:
+            type: string
+          description: Filter by product category.
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+          description: Filter by review status.
+      responses:
+        "200":
+          description: A list of matching products.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+    post:
+      summary: Submit a new product catalog item
+      description: Allows suppliers to submit a product for review (defaults to PENDING status).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductSubmissionRequest"
+      responses:
+        "201":
+          description: Product successfully submitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+
+  /api/v1/products/{productId}:
+    get:
+      summary: Fetch product details by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Product details retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Product not found.
+
+    patch:
+      summary: Update product review status
+      description: Allows Data Stewards to set status to APPROVED or REJECTED.
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductStatusUpdateRequest"
+      responses:
+        "200":
+          description: Product status updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Product not found.
+
+    delete:
+      summary: Delete a product from catalog
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Product successfully deleted.
+        "404":
+          description: Product not found.

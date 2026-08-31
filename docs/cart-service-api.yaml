@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: Cart Microservice API
+  description: Handles shopping carts, item additions, updates, and removals.
+  version: 1.0.0
+
+components:
+  schemas:
+    CartItem:
+      type: object
+      required:
+        - productId
+        - productName
+        - quantity
+        - unitPrice
+      properties:
+        productId:
+          type: string
+          example: "prod-101"
+        productName:
+          type: string
+          example: "Fresh Organic Apples"
+        quantity:
+          type: integer
+          example: 2
+        unitPrice:
+          type: number
+          example: 4.99
+
+    Cart:
+      type: object
+      required:
+        - cartId
+        - customerId
+        - items
+        - totalPrice
+      properties:
+        cartId:
+          type: string
+          example: "cart-456"
+        customerId:
+          type: string
+          example: "cust-123"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        totalPrice:
+          type: number
+          example: 9.98
+
+    AddCartItemRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          example: "prod-101"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+
+paths:
+  /api/v1/carts:
+    get:
+      summary: Retrieve active cart for a customer
+      parameters:
+        - in: query
+          name: customerId
+          required: true
+          schema:
+            type: string
+          description: Unique ID of the customer.
+      responses:
+        "200":
+          description: Active cart retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "404":
+          description: Cart not found.
+
+  /api/v1/carts/{cartId}/items:
+    post:
+      summary: Add or update an item in a cart
+      parameters:
+        - in: path
+          name: cartId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCartItemRequest"
+      responses:
+        "200":
+          description: Item added or updated in cart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+
+  /api/v1/carts/{cartId}/items/{productId}:
+    delete:
+      summary: Remove a specific item from cart
+      parameters:
+        - in: path
+          name: cartId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Item removed from cart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "404":
+          description: Cart or item not found.

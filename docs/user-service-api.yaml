@@ -1,0 +1,147 @@
+openapi: 3.0.3
+info:
+  title: User Microservice API
+  description: Manages user profiles, role assignments, and AWS Cognito sync.
+  version: 1.0.0
+
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - role
+      properties:
+        id:
+          type: string
+          example: "cog-usr-12345"
+        email:
+          type: string
+          example: "steward@freshmarket.com"
+        role:
+          type: string
+          enum: [Customer, Supplier, DataSteward]
+          example: "DataSteward"
+        name:
+          type: string
+          example: "Jane Doe"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          example: "ACTIVE"
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [Customer, Supplier, DataSteward]
+          example: "DataSteward"
+        name:
+          type: string
+          example: "Jane Doe"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          example: "ACTIVE"
+
+paths:
+  /api/v1/users:
+    get:
+      summary: Retrieve all user profiles with pagination (Admin / Data Steward)
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: List of user profiles retrieved.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+    post:
+      summary: Sync user profile upon Cognito login/registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "201":
+          description: User profile successfully created or synced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /api/v1/users/{userId}:
+    get:
+      summary: Fetch user profile details by ID
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found.
+
+    patch:
+      summary: Partially update user details or role
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          description: User profile updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found.
+
+    delete:
+      summary: Delete user account (Admin only)
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile deleted.
+        "404":
+          description: User not found.
