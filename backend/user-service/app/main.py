@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import get_db
 from app.models import UserModel
@@ -11,6 +12,14 @@ app = FastAPI(
     title="User Microservice API",
     description="Manages user profiles and aligns with AWS Cognito for authentication and authorization.",  
     version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.on_event("startup")

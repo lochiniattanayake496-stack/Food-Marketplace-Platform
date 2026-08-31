@@ -11,7 +11,8 @@ from app.seed import init_db
 app = FastAPI(
     title="Cart Microservice API",
     description="Handles active shopping cart management, item quantities, and cart updates.",
-    version="1.0.0"
+    version="1.0.0",
+    redirect_slashes=False
 )
 
 @app.on_event("startup")
@@ -21,21 +22,30 @@ def on_startup():
 
 #---GET ACTIVE CART BY CUSTOMER ID---
 
+from sqlalchemy.exc import IntegrityError
+
 @app.get("/api/v1/carts", response_model=CartResponse)
-def get_cart_by_customer_id(customer_id: str = Query(..., description="Unique Customer ID"), db: Session = Depends(get_db)):
+def get_cart_by_customer_id(customer_id: str = Query(...), db: Session = Depends(get_db)):
     cart = db.query(CartModel).filter(CartModel.customer_id == customer_id).first()
     if not cart:
-        cart = CartModel(customer_id=customer_id)
+        new_cart_id = f"cart-{uuid.uuid4().hex[:8]}"
+        cart = CartModel(id=new_cart_id, customer_id=customer_id)
         db.add(cart)
-        db.commit()
-        db.refresh(cart)
+        try:
+            db.commit()
+            db.refresh(cart)
+        except IntegrityError:
+            # Another concurrent request already created it — fetch that one instead
+            db.rollback()
+            cart = db.query(CartModel).filter(CartModel.customer_id == customer_id).first()
 
-    total_price = sum(item.quantity * item.price for item in cart.items)
+    items = cart.items if cart.items else []
+    total_price = sum(item.quantity * item.unit_price for item in items)
     return {
         "id": cart.id,
         "customer_id": cart.customer_id,
-        "items": cart.items,
-        "totalPrice": total_price
+        "items": items,
+        "totalPrice": total_price,
     }
 
 # --- ADD ITEM TO CART ---#

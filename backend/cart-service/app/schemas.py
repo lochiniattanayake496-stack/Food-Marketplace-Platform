@@ -12,10 +12,11 @@ class CartItemResponse(BaseModel):
         populate_by_name = True
 
 class CartResponse(BaseModel):
-    cartId: str = Field(..., alias="id")
+    id: str
+    cartId: Optional[str] = Field(None, alias="id")
     customerId: str = Field(..., alias="customer_id")
-    items: List[CartItemResponse]
-    totalPrice: float
+    items: List[CartItemResponse] = []
+    totalPrice: float = 0.0
 
     class Config:
         from_attributes = True

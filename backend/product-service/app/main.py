@@ -7,11 +7,20 @@ from app.database import get_db
 from app.models import ProductModel
 from app.schemas import ProductResponse, ProductionSubmissionRequest, ProoductStatusUpdateRequest, ProductUpdateRequest
 from app.seed import init_db
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title = "Product Microservice API",
     description = "Handles product catalog management, supplier submissions and Data Steward approvals. ",
     version = "1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins for dev environment
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.on_event("startup")
@@ -23,7 +32,8 @@ def on_startup():
 @app.get("/api/v1/products", response_model=List[ProductResponse])
 def get_products(
     category: Optional[str] = Query(None, description="Filter products by category"),
-    status: Optional[str] = Query(None, description="Filter products by review status (PENDING, APPROVED, REJECTED )"),
+    status: Optional[str] = Query(None, description="Filter products by review status (PENDING, APPROVED, REJECTED)"),
+    supplier_id: Optional[str] = Query(None, description="Filter products by supplier ID"),
     db: Session = Depends(get_db)
 ):
     query = db.query(ProductModel)
@@ -31,8 +41,11 @@ def get_products(
     if category:
         query = query.filter(ProductModel.category.ilike(category))
     if status:
-        query = query.filter(ProductModel.status == status.upper())
-
+        query = query.filter(ProductModel.status.ilike(status))
+        
+    if supplier_id:
+        query = query.filter(ProductModel.supplier_id == supplier_id)
+        
     return query.all()
 
 #--- SUBMIT NEW PRODUCT ---#
@@ -74,12 +87,11 @@ def update_product(
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-    # Extract only fields explicitly supplied in the request body
     update_data = product_update.model_dump(exclude_unset=True)
 
-    # Validate status value if status is being updated
-    if "status" in update_data:
-        new_status = update_data["status"].upper()
+    # Validate and normalize status
+    if "status" in update_data and update_data["status"]:
+        new_status = str(update_data["status"]).upper()
         if new_status not in ["PENDING", "APPROVED", "REJECTED"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
@@ -91,7 +103,6 @@ def update_product(
         if new_status == "APPROVED":
             product.rejection_reason = None
 
-    # Dynamically apply supplied updates to the database model
     for field, value in update_data.items():
         setattr(product, field, value)
 

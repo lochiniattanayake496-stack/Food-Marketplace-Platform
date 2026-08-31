@@ -9,7 +9,7 @@ const apiClient = axios.create({
   },
 });
 
-// Interceptor to attach Cognitio Bearer Token if available
+// Interceptor to attach Cognito Bearer Token if present
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('cognito_token');
   if (token) {
