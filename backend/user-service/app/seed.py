@@ -13,7 +13,7 @@ try:
                 id="1",
                 name="Ravindu Steward",
                 email="ravindu.steward@example.com",
-                role="DATA_STEWARD",
+                role="DataSteward",
                 status="ACTIVE"
             ),
             UserModel(

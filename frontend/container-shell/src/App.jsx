@@ -1,9 +1,39 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
+
+function SubAppFrame({ src, title }) {
+  return (
+    <div style={{ width: '100%', height: 'calc(100vh - 120px)', border: 'none' }}>
+      <iframe
+        src={src}
+        title={title}
+        style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px', background: '#fff' }}
+      />
+    </div>
+  );
+}
 
 function ShellContent() {
   const { user, switchRole, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState('customer');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Map User IDs directly to their default MFE routes
+  const userRouteMap = {
+    '1': '/customer',
+    '2': '/supplier',
+    '3': '/steward',
+  };
+
+  const handleRoleSelect = (userId) => {
+    // 1. Update Auth state
+    switchRole(userId);
+
+    // 2. Explicitly force router navigation to matching route
+    const targetRoute = userRouteMap[userId] || '/customer';
+    navigate(targetRoute);
+  };
 
   if (loading) return <div style={{ padding: '20px' }}>Loading Application Shell...</div>;
 
@@ -12,7 +42,7 @@ function ShellContent() {
       {/* Shell Header */}
       <header style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        justify: 'space-between',
         alignItems: 'center',
         padding: '1rem 2rem',
         backgroundColor: '#1e293b',
@@ -20,35 +50,54 @@ function ShellContent() {
       }}>
         <h2 style={{ margin: 0 }}>Food Marketplace Platform</h2>
         
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs synced to current URL */}
         <nav style={{ display: 'flex', gap: '15px' }}>
-          <button 
-            onClick={() => setActiveTab('customer')}
-            style={{ padding: '8px 16px', background: activeTab === 'customer' ? '#3b82f6' : '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+          <Link 
+            to="/customer" 
+            style={{
+              padding: '8px 16px',
+              background: location.pathname.startsWith('/customer') ? '#2563eb' : '#334155',
+              color: '#fff', borderRadius: '4px', textDecoration: 'none'
+            }}
+          >
             Customer Store
-          </button>
-          
-          {user?.role === 'supplier' && (
-            <button 
-              onClick={() => setActiveTab('supplier')}
-              style={{ padding: '8px 16px', background: activeTab === 'supplier' ? '#3b82f6' : '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+          </Link>
+
+          {(user?.role === 'supplier' || location.pathname.startsWith('/supplier')) && (
+            <Link 
+              to="/supplier" 
+              style={{
+                padding: '8px 16px',
+                background: location.pathname.startsWith('/supplier') ? '#2563eb' : '#334155',
+                color: '#fff', borderRadius: '4px', textDecoration: 'none'
+              }}
+            >
               Supplier Portal
-            </button>
+            </Link>
           )}
 
-          {user?.role === 'steward' && (
-            <button 
-              onClick={() => setActiveTab('steward')}
-              style={{ padding: '8px 16px', background: activeTab === 'steward' ? '#3b82f6' : '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+          {(user?.role === 'steward' || location.pathname.startsWith('/steward')) && (
+            <Link 
+              to="/steward" 
+              style={{
+                padding: '8px 16px',
+                background: location.pathname.startsWith('/steward') ? '#2563eb' : '#334155',
+                color: '#fff', borderRadius: '4px', textDecoration: 'none'
+              }}
+            >
               Data Steward Workspace
-            </button>
+            </Link>
           )}
         </nav>
 
-        {/* Dev Profile Switcher */}
+        {/* Role Switcher Dropdown */}
         <div style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span>Active: <strong>{user?.username}</strong> ({user?.role})</span>
-          <select onChange={(e) => switchRole(e.target.value)} value={user?.id} style={{ padding: '4px' }}>
+          <span>Active: <strong>{user?.name || user?.username}</strong> ({user?.role})</span>
+          <select 
+            onChange={(e) => handleRoleSelect(e.target.value)} 
+            value={String(user?.id || '1')} 
+            style={{ padding: '6px', borderRadius: '4px', cursor: 'pointer' }}
+          >
             <option value="1">Customer User</option>
             <option value="2">Supplier User</option>
             <option value="3">Data Steward User</option>
@@ -56,11 +105,14 @@ function ShellContent() {
         </div>
       </header>
 
-      {/* Dynamic Workspace Container */}
+      {/* Main Workspace Frame */}
       <main style={{ padding: '2rem' }}>
-        {activeTab === 'customer' && <div style={{ background: '#fff', padding: '20px', borderRadius: '8px' }}>[ Customer MFE Workspace ]</div>}
-        {activeTab === 'supplier' && <div style={{ background: '#fff', padding: '20px', borderRadius: '8px' }}>[ Supplier MFE Workspace ]</div>}
-        {activeTab === 'steward' && <div style={{ background: '#fff', padding: '20px', borderRadius: '8px' }}>[ Data Steward MFE Workspace ]</div>}
+        <Routes>
+          <Route path="/customer/*" element={<SubAppFrame src="http://localhost:3001" title="Customer MFE" />} />
+          <Route path="/supplier/*" element={<SubAppFrame src="http://localhost:3002" title="Supplier MFE" />} />
+          <Route path="/steward/*" element={<SubAppFrame src="http://localhost:3003" title="Steward MFE" />} />
+          <Route path="*" element={<Navigate to="/customer" replace />} />
+        </Routes>
       </main>
     </div>
   );
@@ -69,7 +121,9 @@ function ShellContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <ShellContent />
+      <BrowserRouter>
+        <ShellContent />
+      </BrowserRouter>
     </AuthProvider>
   );
 }

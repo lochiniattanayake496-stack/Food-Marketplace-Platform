@@ -12,13 +12,11 @@ class UserStatus(str, Enum):
     INACTIVE = "INACTIVE"
 
 class UserResponse(BaseModel):
-    id: int
+    id: str
     email: EmailStr
-    username: str
-    full_name: Optional[str] = None
-    role: UserRole
-    status: UserStatus =  UserStatus.ACTIVE
-    
+    name: str
+    role: str
+    status: UserStatus = UserStatus.ACTIVE
 
     class Config:
         from_attributes = True
@@ -30,6 +28,6 @@ class UserSyncRequest(BaseModel):
     status: str
 
 class UserUpdateRequest(BaseModel):
-    role: Optional[UserRole] = None
+    role: Optional[str] = None
     name: Optional[str] = None
     status: Optional[UserStatus] = None
