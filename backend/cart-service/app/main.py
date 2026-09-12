@@ -1,150 +1,77 @@
-import uuid
-from typing import List
-from fastapi import FastAPI, HTTPException, Depends, Query, status
-from sqlalchemy.orm import Session
+import logging
+import os
 
-from app.database import get_db
-from app.models import CartModel, CartItemModel
-from app.schemas import CartResponse, AddCartItemRequest, UpdateCartItemRequest
-from app.seed import init_db
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+
+from app.database import engine, Base, SessionLocal
+from app.controller.cart_controller import router as cart_router
+from app.core.exceptions import AppException
+
+logger = logging.getLogger(__name__)
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Cart Microservice API",
     description="Handles active shopping cart management, item quantities, and cart updates.",
     version="1.0.0",
-    redirect_slashes=False
 )
 
-@app.on_event("startup")
-def on_startup():
-    init_db()
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:9000",
+).split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-#---GET ACTIVE CART BY CUSTOMER ID---
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    logger.warning(
+        "Handled application exception: %s (status %s) on %s %s",
+        exc.message, exc.status_code, request.method, request.url.path,
+    )
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
-from sqlalchemy.exc import IntegrityError
 
-@app.get("/api/v1/carts", response_model=CartResponse)
-def get_cart_by_customer_id(customer_id: str = Query(...), db: Session = Depends(get_db)):
-    cart = db.query(CartModel).filter(CartModel.customer_id == customer_id).first()
-    if not cart:
-        new_cart_id = f"cart-{uuid.uuid4().hex[:8]}"
-        cart = CartModel(id=new_cart_id, customer_id=customer_id)
-        db.add(cart)
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "An unexpected error occurred. Please try again later."},
+    )
+
+
+@app.get("/health", tags=["Health"])
+def health_check():
+    return {"status": "ok"}
+
+
+@app.get("/ready", tags=["Health"])
+def readiness_check():
+    try:
+        db = SessionLocal()
         try:
-            db.commit()
-            db.refresh(cart)
-        except IntegrityError:
-            # Another concurrent request already created it — fetch that one instead
-            db.rollback()
-            cart = db.query(CartModel).filter(CartModel.customer_id == customer_id).first()
-
-    items = cart.items if cart.items else []
-    total_price = sum(item.quantity * item.unit_price for item in items)
-    return {
-        "id": cart.id,
-        "customer_id": cart.customer_id,
-        "items": items,
-        "totalPrice": total_price,
-    }
-
-# --- ADD ITEM TO CART ---#
-
-@app.post("/api/v1/carts/{cart_id}/items", response_model=CartResponse)
-def add_or_update_cart_item(cart_id: str, item_req: AddCartItemRequest, db: Session = Depends(get_db)):
-    cart = db.query(CartModel).filter(CartModel.id == cart_id).first()
-    if not cart:
-        raise HTTPException(status_code=404, detail="Cart not found.")
-
-    existing_item = db.query(CartItemModel).filter(
-        CartItemModel.cart_id == cart_id,
-        CartItemModel.product_id == item_req.productId
-    ).first()
-
-    if existing_item:
-        existing_item.quantity += item_req.quantity
-    else:
-        new_item = CartItemModel(
-            id=f"item-{uuid.uuid4().hex[:6]}",
-            cart_id=cart_id,
-            product_id=item_req.productId,
-            product_name=item_req.productName,
-            quantity=item_req.quantity,
-            unit_price=item_req.unitPrice
+            db.execute(text("SELECT 1"))
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("Readiness check failed — database unreachable")
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "not_ready", "detail": "Database unreachable"},
         )
-        db.add(new_item)
+    return {"status": "ready"}
 
-    db.commit()
-    db.refresh(cart)
 
-    total_price = sum(i.quantity * i.unit_price for i in cart.items)
-    return {
-        "id": cart.id,
-        "customer_id": cart.customer_id,
-        "items": cart.items,
-        "totalPrice": total_price
-    }
-
-# --- UPDATE ITEM IN CART ---#
-
-@app.patch("/api/v1/carts/{cart_id}/items/{product_id}", response_model=CartResponse)
-def patch_cart_item(
-    cart_id: str, 
-    product_id: str, 
-    item_update: UpdateCartItemRequest, 
-    db: Session = Depends(get_db)
-):
-    cart = db.query(CartModel).filter(CartModel.id == cart_id).first()
-    if not cart:
-        raise HTTPException(status_code=404, detail="Cart not found.")
-
-    item = db.query(CartItemModel).filter(
-        CartItemModel.cart_id == cart_id,
-        CartItemModel.product_id == product_id
-    ).first()
-
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found in cart.")
-
-    
-    update_data = item_update.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(item, field, value)
-
-    db.commit()
-    db.refresh(cart)
-
-    total_price = sum(i.quantity * i.unit_price for i in cart.items)
-    return {
-        "id": cart.id,
-        "customer_id": cart.customer_id,
-        "items": cart.items,
-        "totalPrice": total_price
-    }
-
-# --- REMOVE ITEM FROM CART ---
-@app.delete("/api/v1/carts/{cart_id}/items/{product_id}", response_model=CartResponse)
-def remove_cart_item(cart_id: str, product_id: str, db: Session = Depends(get_db)):
-    cart = db.query(CartModel).filter(CartModel.id == cart_id).first()
-    if not cart:
-        raise HTTPException(status_code=404, detail="Cart not found.")
-
-    item = db.query(CartItemModel).filter(
-        CartItemModel.cart_id == cart_id,
-        CartItemModel.product_id == product_id
-    ).first()
-
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found in cart.")
-
-    db.delete(item)
-    db.commit()
-    db.refresh(cart)
-
-    total_price = sum(i.quantity * i.unit_price for i in cart.items)
-    return {
-        "id": cart.id,
-        "customer_id": cart.customer_id,
-        "items": cart.items,
-        "totalPrice": total_price
-    }
+app.include_router(cart_router)
