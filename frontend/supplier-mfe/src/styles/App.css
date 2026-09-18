@@ -1,0 +1,155 @@
+.supplier-dashboard {
+  font-family: sans-serif;
+  padding: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #ffffff;
+}
+
+.panel h3 {
+  color: #0f172a;
+  margin-top: 0;
+}
+
+.product-form,
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row .form-field {
+  flex: 1;
+}
+
+.form-field label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.form-field input,
+.form-field textarea {
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #0f172a;
+}
+
+.btn {
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background-color: #2563eb;
+  color: #fff;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 13px;
+  background-color: #e2e8f0;
+  color: #334155;
+}
+
+.btn-danger {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.product-list-item {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.product-list-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.product-meta {
+  margin: 5px 0 0 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.rejection-reason {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #991b1b;
+}
+
+.product-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-approved {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-rejected {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.status-pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.error-text {
+  color: #991b1b;
+}
+
+.empty-text {
+  color: #666;
+}

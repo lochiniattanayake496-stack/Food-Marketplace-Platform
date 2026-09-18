@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken } from './auth';
 
 const API_BASE_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:8000/api/v1';
 
@@ -7,22 +8,30 @@ const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-export const getProducts = () => apiClient.get('/products?status=APPROVED');
+apiClient.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-// Query cart by customer_id parameter (Removed trailing slash before query param)
-export const getCart = (customerId) => apiClient.get(`/carts?customer_id=${customerId}`);
+// No status filter — backend already defaults to APPROVED-only for
+// unfiltered requests; passing status=APPROVED explicitly would
+// require Data Steward role and get rejected with 403.
+export const getProducts = () => apiClient.get('/products');
 
-// Add item using cart_id and expected payload field names
-export const addToCart = (cartId, product) => {
+export const getCart = () => apiClient.get('/carts');
+
+// Backend only expects product_id and quantity — price/name are
+// fetched server-side from Product Service, never trusted from the client.
+export const addToCart = (cartId, productId, quantity = 1) => {
   return apiClient.post(`/carts/${cartId}/items`, {
-    productId: product.id,
-    productName: product.name,
-    unitPrice: product.price,
-    quantity: product.quantity || 1,
+    product_id: productId,
+    quantity,
   });
 };
 
-// Delete item from cart by cart_id and product_id
 export const removeFromCart = (cartId, productId) => {
   return apiClient.delete(`/carts/${cartId}/items/${productId}`);
 };

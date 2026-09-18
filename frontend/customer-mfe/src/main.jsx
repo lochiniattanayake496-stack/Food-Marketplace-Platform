@@ -1,10 +1,17 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import React from 'react';
+import ReactDOMClient from 'react-dom/client';
+import singleSpaReact from 'single-spa-react';
+import App from './App.jsx';
+import './styles/index.css';
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+const lifecycles = singleSpaReact({
+  React,
+  ReactDOMClient,
+  rootComponent: App,
+  errorBoundary(err, info, props) {
+    return <div style={{ padding: '1rem', color: 'red' }}>Customer MFE failed to load: {err.message}</div>;
+  },
+  domElementGetter: () => document.getElementById('mfe-container'),
+});
+
+export const { bootstrap, mount, unmount } = lifecycles;

@@ -1,0 +1,79 @@
+.steward-workspace {
+  font-family: sans-serif;
+  padding: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.panel {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #fff;
+  margin-top: 20px;
+}
+
+.pending-product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.pending-product-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+  gap: 20px;
+}
+
+.pending-product-info h4 {
+  margin: 0 0 5px 0;
+}
+
+.pending-product-info p {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.pending-product-info .description {
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.pending-product-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #fff;
+}
+
+.btn-approve {
+  background-color: #10b981;
+}
+
+.btn-reject {
+  background-color: #ef4444;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-text {
+  color: #991b1b;
+}
+
+.empty-text {
+  color: #666;
+}

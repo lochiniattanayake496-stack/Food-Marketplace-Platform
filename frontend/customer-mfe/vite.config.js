@@ -6,5 +6,6 @@ export default defineConfig({
   server: {
     port: 3001,
     strictPort: true,
+    cors: true, // required so root (port 3000) can dynamically import this dev server's module
   },
 });
