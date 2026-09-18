@@ -41,10 +41,6 @@ app.add_middleware(
 
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    """Global handler for all custom application exceptions (see
-    app/core/exceptions.py). Converts a raised AppException (or any
-    subclass) into a consistent JSON error response using the
-    exception's own status_code."""
     logger.warning(
         "Handled application exception: %s (status %s) on %s %s",
         exc.message, exc.status_code, request.method, request.url.path,
@@ -57,9 +53,6 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Last-resort catch-all for anything not raised as an AppException.
-    Logs the full stack trace server-side, never exposes it to the
-    client (per the guide's Resilience requirement)."""
     logger.exception(
         "Unhandled exception on %s %s", request.method, request.url.path
     )
@@ -71,20 +64,11 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 @app.get("/health", tags=["Health"])
 def health_check():
-    """Liveness probe: confirms the process is up and can respond.
-    Deliberately has no dependency checks — a slow/broken database
-    should not make this fail (that's what /ready is for), otherwise
-    orchestration may restart a perfectly healthy container to try to
-    fix a database problem restarting it can't fix."""
     return {"status": "ok"}
 
 
 @app.get("/ready", tags=["Health"])
 def readiness_check():
-    """Readiness probe: confirms the service can actually serve
-    traffic right now, i.e. the database is reachable. Returns 503
-    (not 200) when the dependency check fails, so orchestration knows
-    to stop routing traffic here without restarting the container."""
     try:
         db = SessionLocal()
         try:

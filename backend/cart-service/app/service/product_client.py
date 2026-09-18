@@ -11,10 +11,6 @@ PRODUCT_SERVICE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8000")
 
 
 class ProductInfo:
-    """Minimal snapshot of a product, fetched fresh from Product Service.
-    Never trust client-supplied price/name/stock — this is the only
-    source of truth for what a product actually costs and how much
-    is available."""
 
     def __init__(self, id: str, name: str, price: float, stock: int, status: str, is_active: bool):
         self.id = id
@@ -27,10 +23,7 @@ class ProductInfo:
 
 def fetch_product(product_id: str) -> ProductInfo:
     """Calls Product Service's public GET /{product_id}. Raises
-    NotFoundException if the product doesn't exist or isn't visible
-    (Product Service itself hides PENDING/REJECTED/deactivated products
-    from unauthenticated callers, which is exactly the behavior we want
-    here — Cart Service should only ever add APPROVED, active products)."""
+    NotFoundException if the product doesn't exist or isn't visible."""
     url = f"{PRODUCT_SERVICE_URL}/api/v1/products/{product_id}"
 
     try:
@@ -48,9 +41,6 @@ def fetch_product(product_id: str) -> ProductInfo:
 
     data = response.json()
 
-    # Defensive check: even though the public endpoint should only ever
-    # return approved+active products, don't silently trust that — a
-    # future change to Product Service shouldn't quietly break this rule.
     if data.get("status") != "APPROVED" or not data.get("isActive", False):
         raise ValidationException("Product is not currently available for purchase")
 

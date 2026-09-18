@@ -62,10 +62,6 @@ class CartResponse(BaseModel):
 
 
 class AddCartItemRequest(BaseModel):
-    """Only product_id and quantity come from the client. Name, price,
-    and stock validity are always looked up fresh from Product Service —
-    never trusted from the request body, since a client-supplied price
-    could otherwise be spoofed."""
     product_id: str = Field(..., alias="productId")
     quantity: int = Field(..., ge=1)
 
@@ -74,8 +70,6 @@ class AddCartItemRequest(BaseModel):
 
 
 class UpdateCartItemRequest(BaseModel):
-    """Quantity-only update. Price/name are never client-editable —
-    they're a snapshot from Product Service at add-time."""
     quantity: int = Field(..., ge=1)
 
     class Config:

@@ -26,24 +26,27 @@ def list_products(
     db: Session = Depends(get_db),
     current_user: Optional[CurrentUser] = Depends(get_current_user_optional),
 ):
-    if status_filter:
-        is_steward = current_user is not None and current_user.role == UserRole.DATA_STEWARD
-        # A supplier may use the status filter only when also scoping to
-        # their own supplier_id — i.e. checking their own submissions'
-        # approval status, not browsing everyone else's.
-        is_supplier_viewing_own = (
-            current_user is not None
-            and current_user.role == UserRole.SUPPLIER
-            and supplier_id == current_user.id
+    is_steward = current_user is not None and current_user.role == UserRole.DATA_STEWARD
+    is_supplier_viewing_own = (
+        current_user is not None
+        and current_user.role == UserRole.SUPPLIER
+        and supplier_id == current_user.id
+    )
+
+    if status_filter and not (is_steward or is_supplier_viewing_own):
+        raise ForbiddenException(
+            "Only a Data Steward can filter by review status, "
+            "or a Supplier filtering their own products"
         )
-        if not (is_steward or is_supplier_viewing_own):
-            raise ForbiddenException(
-                "Only a Data Steward can filter by review status, "
-                "or a Supplier filtering their own products"
-            )
+
+    # A supplier browsing their own listings with no explicit status
+    # filter should see all their submissions' statuses (pending,
+    # approved, rejected) — not just APPROVED — so they can "track
+    # approval status" per the guide.
+    show_all_statuses = is_supplier_viewing_own and not status_filter
 
     service = ProductService(db)
-    return service.list_products(category, status_filter, supplier_id)
+    return service.list_products(category, status_filter, supplier_id, show_all_statuses)
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

@@ -47,17 +47,9 @@ class UserResponse(BaseModel):
 
 
 class UserSyncRequest(BaseModel):
-    """Called once after a user's first Cognito login to create their
-    local profile row. Deliberately excludes `id` and `role` — id comes
-    from the authenticated token (Cognito sub), and role comes from the
-    token's Cognito group claim, never from the request body, so a
-    caller can't self-assign a privileged role."""
     email: EmailStr
     name: str = Field(..., min_length=1)
 
 
 class UserUpdateRequest(BaseModel):
-    """Self-service profile update. Deliberately excludes `role` and
-    `status` — role changes and account activation/deactivation are
-    administrative actions, not something a user can do to themselves."""
     name: Optional[str] = Field(None, min_length=1)

@@ -27,25 +27,14 @@ class ProductService:
         category: Optional[str] = None,
         status_filter: Optional[str] = None,
         supplier_id: Optional[str] = None,
+        show_all_statuses: bool = False,
     ) -> List[ProductModel]:
-        return self.repository.get_all(category, status_filter, supplier_id)
+        return self.repository.get_all(category, status_filter, supplier_id, show_all_statuses)
 
     def get_product(self, product_id: str) -> ProductModel:
-        """Raw internal fetch — no visibility restriction. Used by
-        update/review/deactivate, which already enforce their own
-        ownership/role checks and legitimately need to load a product
-        regardless of its current status (e.g. a supplier must be able
-        to fetch their own PENDING product to edit it)."""
         return self.repository.get_by_id(product_id)
 
     def get_visible_product(self, product_id: str, current_user: Optional[CurrentUser]) -> ProductModel:
-        """Public-facing fetch for GET /{product_id}. Enforces the
-        guide's visibility rule: an APPROVED + active product is visible
-        to anyone, but a PENDING/REJECTED/deactivated product is only
-        visible to its owning supplier or a Data Steward. Returns
-        NotFoundException (not Forbidden) for anyone else, so the
-        response doesn't confirm a restricted product's existence to
-        an unauthorized caller."""
         product = self.repository.get_by_id(product_id)
 
         is_publicly_visible = product.status == ProductStatus.APPROVED and product.is_active

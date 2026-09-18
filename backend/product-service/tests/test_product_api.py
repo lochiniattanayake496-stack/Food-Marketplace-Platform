@@ -17,6 +17,7 @@ def test_submit_product_as_supplier_returns_201(client):
             "description": "Fresh",
             "price": 5.99,
             "category": "Meats",
+            "stock": 10,
         },
     )
 
@@ -25,6 +26,7 @@ def test_submit_product_as_supplier_returns_201(client):
     assert body["name"] == "Chicken Breast"
     assert body["status"] == "PENDING"
     assert body["supplierId"] == "supplier-1"
+    assert body["stock"] == 10
 
 
 def test_submit_product_without_user_id_header_returns_401(client):
@@ -57,14 +59,14 @@ def test_get_product_by_id_that_does_not_exist_returns_404(client):
     assert response.status_code == 404
 
 
-def _create_product(client, supplier_id="supplier-1"):
+def _create_product(client, supplier_id="supplier-1", stock=10):
     """Small helper, not a test itself — pytest ignores functions that
     don't start with test_. Saves repeating this setup in every test
     below that needs an existing product to work with."""
     response = client.post(
         "/api/v1/products",
         headers={"X-User-Id": supplier_id, "X-User-Role": "Supplier"},
-        json={"name": "Chicken Breast", "price": 5.99, "category": "Meats"},
+        json={"name": "Chicken Breast", "price": 5.99, "category": "Meats", "stock": stock},
     )
     return response.json()["id"]
 
@@ -170,12 +172,18 @@ def test_supplier_can_deactivate_own_product(client):
 
     assert response.status_code == 200
 
+
 def test_anonymous_user_cannot_filter_by_pending_status(client):
     _create_product(client)  # creates a PENDING product
 
     response = client.get("/api/v1/products?status=PENDING")
 
     assert response.status_code == 403
+
+
+# ==========================================
+# Visibility rule tests (GET /{product_id})
+# ==========================================
 
 def test_owning_supplier_can_view_own_pending_product_by_id(client):
     """A PENDING product isn't publicly visible yet, but the supplier
@@ -274,3 +282,36 @@ def test_supplier_cannot_filter_by_status_for_another_suppliers_products(client)
     )
 
     assert response.status_code == 403
+
+
+def test_supplier_sees_all_own_statuses_without_explicit_status_filter(client):
+    """A supplier querying their own supplier_id with NO status filter
+    should see all their own submissions (pending/approved/rejected),
+    not just APPROVED — needed to 'track approval status' per the guide."""
+    pending_id = _create_product(client, supplier_id="supplier-1")
+    approved_id = _create_product(client, supplier_id="supplier-1")
+    client.patch(
+        f"/api/v1/products/{approved_id}/review",
+        headers={"X-User-Id": "steward-1", "X-User-Role": "DataSteward"},
+        json={"status": "APPROVED"},
+    )
+
+    response = client.get(
+        "/api/v1/products?supplier_id=supplier-1",
+        headers={"X-User-Id": "supplier-1", "X-User-Role": "Supplier"},
+    )
+
+    assert response.status_code == 200
+    product_ids = [p["id"] for p in response.json()]
+    assert pending_id in product_ids
+    assert approved_id in product_ids
+
+
+def test_anonymous_user_without_status_filter_still_sees_only_approved(client):
+    """Confirms show_all_statuses never accidentally applies to a
+    public/anonymous listing request."""
+    _create_product(client, supplier_id="supplier-1")  # PENDING
+
+    response = client.get("/api/v1/products")
+
+    assert response.json() == []

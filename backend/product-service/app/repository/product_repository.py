@@ -20,6 +20,7 @@ class ProductRepository:
         category: Optional[str] = None,
         status: Optional[str] = None,
         supplier_id: Optional[str] = None,
+        show_all_statuses: bool = False,
     ) -> List[ProductModel]:
         query = self.db.query(ProductModel)
 
@@ -33,11 +34,15 @@ class ProductRepository:
                 logger.warning("Invalid status filter received: %s", status)
                 raise ValidationException(f"Invalid status filter: {status}")
             query = query.filter(ProductModel.status == status_enum)
-        else:
-            # No status filter given: default to APPROVED only, so "no
-            # filter" never accidentally means "show everything" —
-            # required by the guide's Product visibility rule.
+        elif not show_all_statuses:
+            # No status filter given, and caller isn't viewing their own
+            # full history: default to APPROVED only, so "no filter"
+            # never accidentally means "show everything" — required by
+            # the guide's Product visibility rule.
             query = query.filter(ProductModel.status == ProductStatus.APPROVED)
+        # else: show_all_statuses=True and no explicit status — a
+        # supplier viewing their own products' approval history, don't
+        # filter by status at all.
 
         if supplier_id:
             query = query.filter(ProductModel.supplier_id == supplier_id)
@@ -51,10 +56,6 @@ class ProductRepository:
             raise AppException("Failed to retrieve products", status_code=500)
 
     def get_by_id(self, product_id: str) -> ProductModel:
-        """Raw fetch by ID — no visibility filtering. Callers that need
-        to enforce who is allowed to SEE a non-approved/inactive product
-        (e.g. the public single-product endpoint) must do that check in
-        the service layer, since ownership/role context lives there."""
         try:
             product = (
                 self.db.query(ProductModel)

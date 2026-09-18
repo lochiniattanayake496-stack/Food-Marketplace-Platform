@@ -57,8 +57,7 @@ class ForbiddenException(AppException):
 
 class UnauthorizedException(AppException):
     """Raised when a request has no valid identity/token at all
-    (HTTP 401). Reserved for the auth dependency we'll add next —
-    not used by the repository/service layer directly."""
+    (HTTP 401)."""
 
     def __init__(self, message: str = "Authentication required"):
         super().__init__(message, status_code=401)
@@ -67,10 +66,7 @@ class UnauthorizedException(AppException):
 class ValidationException(AppException):
     """Raised for request-level validation failures that Pydantic
     itself can't catch, e.g. an invalid query-parameter value
-    (HTTP 400). Replaces the current pattern in ProductRepository.get_all()
-    of raising a bare AppException(status_code=400) for an invalid
-    status filter — using a named exception here makes intent clearer
-    at a glance."""
+    (HTTP 400)."""
 
     def __init__(self, message: str = "Invalid request"):
         super().__init__(message, status_code=400)
